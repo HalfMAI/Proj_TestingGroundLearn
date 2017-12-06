@@ -13,7 +13,7 @@
 
 #include "AIController.h"
 #include "PatrolTaskPointComponent.h"
-#include "TP_ThirdPerson/TP_ThirdPersonCharacter.h"
+//#include "GameFramework/Character.h"
 #include "BTTaskNode_FindNextPatrolPoint.generated.h"
 
 /**
