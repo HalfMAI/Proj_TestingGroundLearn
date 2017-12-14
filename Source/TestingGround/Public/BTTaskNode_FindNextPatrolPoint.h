@@ -4,16 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "BehaviorTree/BTTaskNode.h"
-#include "BehaviorTree/Blackboard/BlackboardKeyAllTypes.h"
-#include "BehaviorTree/BlackboardComponent.h"
-
-
-
-
-
-#include "AIController.h"
-#include "PatrolTaskPointComponent.h"
-//#include "GameFramework/Character.h"
 #include "BTTaskNode_FindNextPatrolPoint.generated.h"
 
 /**

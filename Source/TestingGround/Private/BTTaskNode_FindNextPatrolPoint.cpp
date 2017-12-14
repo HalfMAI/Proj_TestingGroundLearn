@@ -2,6 +2,10 @@
 
 #include "BTTaskNode_FindNextPatrolPoint.h"
 
+#include "BehaviorTree/BlackboardComponent.h"
+#include "AIController.h"
+#include "PatrolTaskPointComponent.h"
+
 EBTNodeResult::Type UBTTaskNode_FindNextPatrolPoint::ExecuteTask(UBehaviorTreeComponent & OwnerComp, uint8 * NodeMemory)
 {
 	UBlackboardComponent *tmpBlackboardCom = OwnerComp.GetBlackboardComponent();
