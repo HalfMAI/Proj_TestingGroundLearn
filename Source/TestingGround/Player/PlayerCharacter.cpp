@@ -60,6 +60,7 @@ void APlayerCharacter::BeginPlay()
 	if (this->FP_MyGun)
 	{
 		this->FP_MyGun->SetOwner(this);
+		this->FP_MyGun->Instigator = this;
 		//Attach gun mesh component to Skeleton, doing it here because the skeleton is not yet created in the constructor
 		this->FP_MyGun->AttachToComponent(Mesh1P, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true), TEXT("GripPoint"));
 	}

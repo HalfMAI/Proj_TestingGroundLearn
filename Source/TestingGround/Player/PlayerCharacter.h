@@ -20,10 +20,7 @@ class APlayerCharacter : public ACharacter
 	/** First person camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FirstPersonCameraComponent;
-
-private:
-	class AGun* FP_MyGun;
-
+	
 public:
 	APlayerCharacter();
 
@@ -31,6 +28,9 @@ protected:
 	virtual void BeginPlay();
 
 public:
+	UPROPERTY(BlueprintReadOnly)
+	class AGun* FP_MyGun;
+
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseTurnRate;
@@ -57,6 +57,7 @@ public:
 protected:
 	
 	/** Fires a projectile. */
+	UFUNCTION(BlueprintCallable)
 	void OnFire();
 
 	/** Resets HMD orientation and position in VR. */
