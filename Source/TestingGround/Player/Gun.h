@@ -43,5 +43,10 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	
 	UFUNCTION(BlueprintCallable, Category = Gun)
-	void OnFire();	
+	void Fire();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Gun")
+	bool IsGunCanFire();
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Gun")
+	void OnGunFire();
 };

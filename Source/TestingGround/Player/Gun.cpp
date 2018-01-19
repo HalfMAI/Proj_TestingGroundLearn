@@ -40,8 +40,13 @@ void AGun::Tick(float DeltaTime)
 
 }
 
-void AGun::OnFire()
+void AGun::Fire()
 {
+	if (!this->IsGunCanFire())
+	{
+		return;
+	}
+
 	// try and fire a projectile
 	if (ProjectileClass != NULL)
 	{
@@ -68,4 +73,5 @@ void AGun::OnFire()
 		UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
 	}
 
+	this->OnGunFire();
 }
