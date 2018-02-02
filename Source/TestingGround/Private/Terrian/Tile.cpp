@@ -76,7 +76,7 @@ void ATile::PlaceActor(TSubclassOf<AActor> &ActorClass, FBox &SpawnBod, FVector2
 
 			float tmpRadius = tmpSpawnActor->GetRootComponent()->Bounds.SphereRadius;
 
-			for (int i = 0; i < RetryTimes; i++)
+			for (int i = 0; i <= RetryTimes; i++)
 			{
 				tmpLoaction = FMath::RandPointInBox(SpawnBod);
 				tmpRotate = FMath::RandRange(-180, 180);

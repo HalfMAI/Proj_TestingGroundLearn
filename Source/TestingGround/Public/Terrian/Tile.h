@@ -29,7 +29,7 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-
+	
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Tile")
@@ -43,7 +43,6 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Tile")
 	UBoxComponent* SpawnBox;
-
-
+	
 	void PlaceActor(TSubclassOf<AActor> &ActorClass, FBox &SpawnBod, FVector2DHalf ScaleRange, int RetryTimes = 10);
 };
