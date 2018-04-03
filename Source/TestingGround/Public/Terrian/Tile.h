@@ -8,10 +8,21 @@
 
 
 class UBoxComponent;
+class UActorPool;
 
 
 #define ECC_GameTraceChannel_SpawnProps ECollisionChannel::ECC_GameTraceChannel2
 
+
+USTRUCT()
+struct FSpawnPosition
+{
+	GENERATED_USTRUCT_BODY()
+
+	FVector Location;
+	float Rotation;
+	float Scale;
+};
 
 UCLASS()
 class TESTINGGROUND_API ATile : public AActor
@@ -34,15 +45,35 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Tile")
 	void SpawnProps(TArray< TSubclassOf<AActor> > SpawnActors, int MinSpawn, int MaxSpawn, float ScaleMin=1.f, float ScaleMax=1.f);
-
+	                    
+	UFUNCTION(BlueprintCallable, Category = "Tile")
+	void SpawnAIPawns(TArray< TSubclassOf<APawn> > SpawnPawns, int MinSpawn, int MaxSpawn);
 
 	UFUNCTION(BlueprintCallable, Category = "Tile")
 	bool CastSphere(FVector Location, float Radius);
 
-private:
+	UFUNCTION(BlueprintCallable, Category = "Pool")
+	void SetupPool(UActorPool* InPool);
 
+private:
+	UActorPool * ActorPool;
+	AActor * TitleNavMeshBoundsVolume;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "Tile")
 	UBoxComponent* SpawnBox;
 	
-	void PlaceActor(TSubclassOf<AActor> &ActorClass, FBox &SpawnBod, FVector2DHalf ScaleRange, int RetryTimes = 10);
+private:
+	FBox _GetSpawnBox();
+
+	template<typename T>
+	using SpawnFuncType = AActor* (ATile::*) (T, FSpawnPosition);
+
+	AActor* _SpawnProps(TSubclassOf<AActor> SpawnPropClass, FSpawnPosition SpawnPosition);
+	AActor* _SpawnAI(TSubclassOf<APawn> SpawnAIPawnClass, FSpawnPosition SpawnPosition);
+
+	void PositionNavMeshBoundsVolume();
+
+	template<class T>
+	void PlaceActor(TArray<T> SpawnActors, SpawnFuncType<T> SpawnFunc, int MinSpawn, int MaxSpawn, FVector2DHalf ScaleRange, int RetryTimes);
+	TArray<FSpawnPosition> GetSpawnPoints(int SpawnNum, int RetryTimes, FBox & SpawnBox, FVector2DHalf &ScaleRange, float Radius);
 };

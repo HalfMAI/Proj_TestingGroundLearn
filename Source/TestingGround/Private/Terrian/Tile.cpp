@@ -4,12 +4,16 @@
 
 #include "Components/BoxComponent.h"
 #include "Engine/World.h"
+#include "ActorPool.h"
+
+#include "AI/Navigation/NavigationSystem.h"
 
 // Sets default values
 ATile::ATile()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+
 
 }
 
@@ -37,68 +41,122 @@ void ATile::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		tmpActor->Destroy();
 	}
+
+	if (this->ActorPool)
+	{
+		this->ActorPool->Return(this->TitleNavMeshBoundsVolume);
+	}
 }
 
 void ATile::SpawnProps(TArray< TSubclassOf<AActor> > SpawnActors, int MinSpawn, int MaxSpawn, float ScaleMin, float ScaleMax)
 {
-	auto tmpArr = GetComponentsByTag(UBoxComponent::StaticClass(), TEXT("SpawnBox"));
-	if (tmpArr.Num() <= 0)
-	{
-		return;
-	}
+	FVector2DHalf tmp = FVector2DHalf(ScaleMin, ScaleMax);
 
-	this->SpawnBox = Cast<UBoxComponent>(tmpArr[0]);
-	FBox tmpBox = this->SpawnBox->Bounds.GetBox();
-
-	int8 tmpMaxSpawnTypeNum = SpawnActors.Num() - 1;
+	FBox tmpSpawnBox = this->_GetSpawnBox();
 
 	int8 tmpSpawnNum = FMath::RandRange(MinSpawn, MaxSpawn);
-		
-	for (int32 i = 0; i < tmpSpawnNum; i++)
-	{
-		int8 tmpSpawnTypeNum = FMath::RandRange(0, tmpMaxSpawnTypeNum);
 
-		auto tmpActorClass = SpawnActors[tmpSpawnTypeNum];
-		PlaceActor(tmpActorClass, tmpBox, FVector2DHalf(ScaleMin, ScaleMax));
+	int8 tmpMaxSpawnTypeNum = SpawnActors.Num() - 1;
+	int8 tmpSpawnTypeNum = FMath::RandRange(0, tmpMaxSpawnTypeNum);
+
+	auto tmpActorClass = SpawnActors[tmpSpawnTypeNum];
+	AActor* tmpSpawnActor = GetWorld()->SpawnActor(tmpActorClass);
+	if (tmpSpawnActor)
+	{
+		float tmpRadius = tmpSpawnActor->GetRootComponent()->Bounds.SphereRadius;
+		tmpSpawnActor->Destroy();
+
+		TArray<FSpawnPosition> tmpSpawnPositions = GetSpawnPoints(tmpSpawnNum, 10, tmpSpawnBox, tmp, tmpRadius);
+		for (FSpawnPosition tmpPos : tmpSpawnPositions)
+		{
+			this->_SpawnProps(tmpActorClass, tmpPos);
+		}
+	}
+
+	//this->PlaceActor< TSubclassOf<AActor> >(SpawnActors, &ATile::_SpawnProps, MinSpawn, MaxSpawn, tmp, 10);
+}
+
+void ATile::SpawnAIPawns(TArray< TSubclassOf<APawn> > SpawnPawns, int MinSpawn, int MaxSpawn)
+{
+	FVector2DHalf tmp = FVector2DHalf(1, 1);
+
+	FBox tmpSpawnBox = this->_GetSpawnBox();
+
+	int8 tmpSpawnNum = FMath::RandRange(MinSpawn, MaxSpawn);
+
+	int8 tmpMaxSpawnTypeNum = SpawnPawns.Num() - 1;
+	int8 tmpSpawnTypeNum = FMath::RandRange(0, tmpMaxSpawnTypeNum);
+
+	auto tmpActorClass = SpawnPawns[tmpSpawnTypeNum];
+	AActor* tmpSpawnActor = GetWorld()->SpawnActor(tmpActorClass);
+	if (tmpSpawnActor)
+	{
+		float tmpRadius = tmpSpawnActor->GetRootComponent()->Bounds.SphereRadius;
+		tmpSpawnActor->Destroy();
+
+		TArray<FSpawnPosition> tmpSpawnPositions = GetSpawnPoints(tmpSpawnNum, 10, tmpSpawnBox, tmp, tmpRadius);
+		for (FSpawnPosition tmpPos : tmpSpawnPositions)
+		{
+			this->_SpawnAI(tmpActorClass, tmpPos);
+		}
+	}
+
+	//this->PlaceActor< TSubclassOf<APawn> >(SpawnPawns, &ATile::_SpawnAI, MinSpawn, MaxSpawn, tmp, 10);
+}
+
+template<class T>
+void ATile::PlaceActor(TArray<T> SpawnActors, SpawnFuncType<T> SpawnFunc, int MinSpawn, int MaxSpawn, FVector2DHalf ScaleRange, int RetryTimes)
+{
+	FBox tmpSpawnBox = this->_GetSpawnBox();
+
+	int8 tmpSpawnNum = FMath::RandRange(MinSpawn, MaxSpawn);
+
+	int8 tmpMaxSpawnTypeNum = SpawnActors.Num() - 1;
+	int8 tmpSpawnTypeNum = FMath::RandRange(0, tmpMaxSpawnTypeNum);
+
+	auto tmpActorClass = SpawnActors[tmpSpawnTypeNum];
+	AActor* tmpSpawnActor = GetWorld()->SpawnActor(tmpActorClass);
+	if (tmpSpawnActor)
+	{
+		float tmpRadius = tmpSpawnActor->GetRootComponent()->Bounds.SphereRadius;
+		tmpSpawnActor->Destroy();
+
+		TArray<FSpawnPosition> tmpSpawnPositions = GetSpawnPoints(tmpSpawnNum, RetryTimes, tmpSpawnBox, ScaleRange, tmpRadius);
+		for (FSpawnPosition tmpPos : tmpSpawnPositions)
+		{
+			this->*SpawnFunc(tmpActorClass, tmpPos);
+		}
 	}
 }
 
-void ATile::PlaceActor(TSubclassOf<AActor> &ActorClass, FBox &SpawnBod, FVector2DHalf ScaleRange, int RetryTimes)
+TArray<FSpawnPosition> ATile::GetSpawnPoints(int SpawnNum, int RetryTimes, FBox & SpawnBox, FVector2DHalf &ScaleRange, float Radius)
 {
-	UWorld* tmpWorld = GetWorld();
-	if (tmpWorld)
+	TArray<FSpawnPosition> retSpawnPoints;
+
+	for (int32 i = 0; i < SpawnNum; i++)
 	{
-		AActor* tmpSpawnActor = tmpWorld->SpawnActor(ActorClass);
-		if (tmpSpawnActor)
+		for (int j = 0; j <= RetryTimes; j++)
 		{
-			FVector tmpLoaction;
-			float tmpRotate, tmpScalar;
+			FVector tmpLoaction = FMath::RandPointInBox(SpawnBox);
+			float tmpRotate = FMath::RandRange(-180, 180);
+			float tmpScalar = FMath::RandRange(ScaleRange.X, ScaleRange.Y);
 
-			float tmpRadius = tmpSpawnActor->GetRootComponent()->Bounds.SphereRadius;
-
-			for (int i = 0; i <= RetryTimes; i++)
+			bool tmpIsBlock = CastSphere(tmpLoaction, Radius * tmpScalar);
+			if (!tmpIsBlock)
 			{
-				tmpLoaction = FMath::RandPointInBox(SpawnBod);
-				tmpRotate = FMath::RandRange(-180, 180);
-				tmpScalar = FMath::RandRange(ScaleRange.X, ScaleRange.Y);
+				FSpawnPosition tmpSpawnPosition;
+				tmpSpawnPosition.Location = tmpLoaction;
+				tmpSpawnPosition.Rotation = tmpRotate;
+				tmpSpawnPosition.Scale = tmpScalar;
 
-				bool tmpIsBlock = CastSphere(tmpLoaction, tmpRadius * tmpScalar);
-				if (!tmpIsBlock)
-				{
-					tmpSpawnActor->SetActorLocationAndRotation(tmpLoaction, FRotator(0, tmpRotate, 0));
-					tmpSpawnActor->SetActorRelativeScale3D(FVector(tmpScalar));
-					tmpSpawnActor->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
-					break;
-				}
-
-				if (i >= RetryTimes)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("%s Can't Spawn!!"), *tmpSpawnActor->GetName());
-					tmpSpawnActor->Destroy();
-				}
+				retSpawnPoints.Add(tmpSpawnPosition);
+				break;
 			}
 		}
 	}
+		
+	
+	return retSpawnPoints;
 }
 
 bool ATile::CastSphere(FVector Location, float Radius)
@@ -116,4 +174,74 @@ bool ATile::CastSphere(FVector Location, float Radius)
 	FColor tmpColor = bIsHit ? FColor::Red : FColor::Green;
 	
 	return bIsHit;
+}
+
+void ATile::SetupPool(UActorPool * InPool)
+{
+	this->ActorPool = InPool;
+
+	this->PositionNavMeshBoundsVolume();
+}
+
+FBox ATile::_GetSpawnBox()
+{
+	auto tmpArr = GetComponentsByTag(UBoxComponent::StaticClass(), TEXT("SpawnBox"));
+	if (tmpArr.Num() <= 0)
+	{
+		return FBox();
+	}
+
+	this->SpawnBox = Cast<UBoxComponent>(tmpArr[0]);
+	FBox tmpBox = this->SpawnBox->Bounds.GetBox();
+
+	return tmpBox;
+}
+
+AActor* ATile::_SpawnProps(TSubclassOf<AActor> SpawnPropClass, FSpawnPosition SpawnPosition)
+{
+	UWorld* tmpWorld = GetWorld();
+	if (tmpWorld)
+	{
+		AActor* tmpSpawnActor = tmpWorld->SpawnActor(SpawnPropClass);
+		if (tmpSpawnActor)
+		{
+			tmpSpawnActor->SetActorLocationAndRotation(SpawnPosition.Location, FRotator(0, SpawnPosition.Rotation, 0));
+			tmpSpawnActor->SetActorRelativeScale3D(FVector(SpawnPosition.Scale));
+			tmpSpawnActor->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
+		}
+		return tmpSpawnActor;
+	}
+	return nullptr;
+}
+
+AActor* ATile::_SpawnAI(TSubclassOf<APawn> SpawnAIPawnClass, FSpawnPosition SpawnPosition)
+{
+	UWorld* tmpWorld = GetWorld();
+	if (tmpWorld)
+	{
+		AActor* tmpSpawnActor = tmpWorld->SpawnActor(SpawnAIPawnClass);
+		if (tmpSpawnActor)
+		{
+			tmpSpawnActor->SetActorLocationAndRotation(SpawnPosition.Location, FRotator(0, SpawnPosition.Rotation, 0));
+			tmpSpawnActor->SetActorRelativeScale3D(FVector(SpawnPosition.Scale));
+			tmpSpawnActor->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
+			tmpSpawnActor->Tags.Add(FName("'Enemy'"));
+		}
+		return tmpSpawnActor;
+	}
+	return nullptr;
+}
+
+void ATile::PositionNavMeshBoundsVolume()
+{
+	this->TitleNavMeshBoundsVolume = this->ActorPool->Checkout();
+
+	if (this->TitleNavMeshBoundsVolume == nullptr)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] Not Enough actors in Pool"), *GetName());
+		return;	
+	}
+	UE_LOG(LogTemp, Error, TEXT("[%s] Check out %s."), *GetName(), *this->TitleNavMeshBoundsVolume->GetName());
+	this->TitleNavMeshBoundsVolume->SetActorLocation(GetActorLocation() + FVector(2000, 0, 0));
+	GetWorld()->GetNavigationSystem()->Build();
 }
